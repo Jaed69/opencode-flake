@@ -29,6 +29,19 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     hash = "sha256-lsyjM6rhSv1HzEd2d/+aGHqrYMARj+TrFrLMGY2X59U=";
   };
 
+  postPatch = ''
+    if [ -f bunfig.toml ]; then
+      substituteInPlace bunfig.toml \
+        --replace-quiet 'preload = ["@opentui/solid/preload"]' \
+        'preload = []'
+    fi
+    if [ -f packages/opencode/bunfig.toml ]; then
+      substituteInPlace packages/opencode/bunfig.toml \
+        --replace-quiet 'preload = ["@opentui/solid/preload"]' \
+        'preload = []'
+    fi
+  '';
+
   node_modules = stdenvNoCC.mkDerivation {
     pname = "opencode-node_modules";
     inherit (finalAttrs) version src;
@@ -72,6 +85,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     outputHash =
       {
         x86_64-linux = "sha256-uE/XBFopd+yGgWKhs8MMWHmAZAZfrb4vDbdqWYxdHZU=";
+        aarch64-linux = lib.fakeHash;
+        x86_64-darwin = lib.fakeHash;
+        aarch64-darwin = lib.fakeHash;
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
