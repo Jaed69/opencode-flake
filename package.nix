@@ -51,7 +51,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
        export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
        bun install \
-         --filter=opencode \
          --force \
          --ignore-scripts \
          --no-progress
