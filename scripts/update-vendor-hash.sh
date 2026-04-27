@@ -1,88 +1,51 @@
 #!/usr/bin/env bash
-# Script to update Go vendor hashes in package.nix
-# This script is used by the GitHub workflow to handle vendorHash updates
-
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+# Colores para la salida
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-echo "Attempting to update vendor hashes..."
+echo "Iniciando actualización automática de hashes..."
 
-# Function to extract hash from error message
-extract_hash_from_error() {
-    local error_output="$1"
-    # Look for "got: sha256-..." pattern in the error
-    echo "$error_output" | grep -oP 'got:\s+sha256-[A-Za-z0-9+/]+=*' | sed 's/got:\s*//'
-}
-
-# Function to update vendorHash in package.nix
-update_vendor_hash() {
-    local old_hash="$1"
-    local new_hash="$2"
-    
-    echo -e "${YELLOW}Updating vendorHash from:${NC}"
-    echo "  $old_hash"
-    echo -e "${YELLOW}to:${NC}"
-    echo "  $new_hash"
-    
-    # Update the vendorHash in package.nix
-    sed -i "s|vendorHash = \"$old_hash\"|vendorHash = \"$new_hash\"|" package.nix
-    
-    if grep -q "$new_hash" package.nix; then
-        echo -e "${GREEN}Successfully updated vendorHash${NC}"
-        return 0
-    else
-        echo -e "${RED}Failed to update vendorHash${NC}"
-        return 1
-    fi
-}
-
-# Try to build and capture any hash mismatch errors
-echo "Building package to check for hash mismatches..."
+# Intentar construir y capturar el error
 BUILD_OUTPUT=$(nix build .#opencode 2>&1) || BUILD_FAILED=$?
 
 if [ "${BUILD_FAILED:-0}" -ne 0 ]; then
-    # Check if it's a hash mismatch error
-    if echo "$BUILD_OUTPUT" | grep -q "hash mismatch in fixed-output derivation"; then
-        echo -e "${YELLOW}Hash mismatch detected, extracting correct hash...${NC}"
+    # Verificar si es un error de desajuste de hash
+    if echo "$BUILD_OUTPUT" | grep -q "hash mismatch"; then
+        echo -e "${YELLOW}Se detectó un desajuste de hash. Extrayendo valores...${NC}"
         
-        # Extract the current hash from package.nix
-        CURRENT_VENDOR_HASH=$(grep -oP 'vendorHash = "\K[^"]+' package.nix | head -1)
+        # Extraer el hash antiguo (specified) y el nuevo (got)
+        OLD_HASH=$(echo "$BUILD_OUTPUT" | grep -oP 'specified:\s+\Ksha256-[A-Za-z0-9+/]+=*')
+        NEW_HASH=$(echo "$BUILD_OUTPUT" | grep -oP 'got:\s+\Ksha256-[A-Za-z0-9+/]+=*')
         
-        # Extract the correct hash from error
-        NEW_VENDOR_HASH=$(extract_hash_from_error "$BUILD_OUTPUT")
+        if [ -z "$OLD_HASH" ] || [ -z "$NEW_HASH" ]; then
+            echo -e "${RED}No se pudieron extraer los hashes del error.${NC}"
+            exit 1
+        fi
+
+        echo -e "${YELLOW}Reemplazando:${NC} $OLD_HASH"
+        echo -e "${GREEN}Por el nuevo:${NC} $NEW_HASH"
         
-        if [ -n "$NEW_VENDOR_HASH" ]; then
-            echo -e "${GREEN}Found correct vendorHash: $NEW_VENDOR_HASH${NC}"
-            
-            # Update the vendorHash
-            if update_vendor_hash "$CURRENT_VENDOR_HASH" "$NEW_VENDOR_HASH"; then
-                # Try building again with the new hash
-                echo "Verifying build with new vendorHash..."
-                if nix build .#opencode; then
-                    echo -e "${GREEN}Build successful with updated vendorHash!${NC}"
-                    exit 0
-                else
-                    echo -e "${RED}Build still failing after vendorHash update${NC}"
-                    exit 1
-                fi
-            fi
+        # Reemplazo universal en package.nix
+        sed -i "s|$OLD_HASH|$NEW_HASH|g" package.nix
+        
+        echo -e "${GREEN}Verificando construcción con el nuevo hash...${NC}"
+        if nix build .#opencode; then
+            echo -e "${GREEN}¡Construcción exitosa con el hash actualizado!${NC}"
+            exit 0
         else
-            echo -e "${RED}Could not extract correct hash from error output${NC}"
-            echo "Error output:"
-            echo "$BUILD_OUTPUT"
+            echo -e "${RED}La construcción volvió a fallar. Puede haber otro hash pendiente.${NC}"
             exit 1
         fi
     else
-        echo -e "${RED}Build failed but not due to hash mismatch${NC}"
+        echo -e "${RED}El fallo no parece ser por un desajuste de hash.${NC}"
         echo "$BUILD_OUTPUT"
         exit 1
     fi
-else
-    echo -e "${GREEN}Build successful, no hash updates needed${NC}"
-    exit 0
 fi
+
+echo -e "${GREEN}No se necesitan actualizaciones de hash.${NC}"
+exit 0
