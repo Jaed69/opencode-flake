@@ -96,19 +96,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook preBuild
 
     export NODE_ENV=production
-
-    # Entrar a la carpeta correcta para que Bun lea el tsconfig.json de SolidJS
+    
     cd packages/opencode
-
-    bun build \
-      --define OPENCODE_VERSION="'${finalAttrs.version}'" \
-      --compile \
-      --compile-exec-argv="--" \
-      --target=${bun-target.${stdenvNoCC.hostPlatform.system}} \
-      --outfile=../../opencode \
-      ./src/index.ts
-
-    # Volver a la raíz para la fase de instalación
+ 
+    bun run ./script/build.ts -- --target=${bun-target.${stdenv.hostPlatform.system}}
+  
+    cp dist/*/bin/opencode ../../opencode
     cd ../../
 
     runHook postBuild
