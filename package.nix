@@ -72,7 +72,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     outputHash =
       {
-        x86_64-linux = ""; # DEJAREMOS ESTO VACÍO TEMPORALMENTE TAMBIÉN
+        x86_64-linux = "sha256-nSQCNB/gugkWg8eVd0qcnaqNCGBkGgQnyd72Lz4dEJc=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
