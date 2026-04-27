@@ -78,25 +78,17 @@ jobs:
               echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
             fi
           else
-            echo "nix-update failed, checking if it's a vendorHash issue..."
+            echo "nix-update failed, checking if it's a hash mismatch issue..."
             
-            # Check if nix-update updated the version but build failed
-            if git diff --name-only | grep -q "package.nix"; then
-              echo "package.nix was modified, attempting to fix vendorHash..."
-              
-              # Run the vendor hash update script
-              if ./scripts/update-vendor-hash.sh; then
-                echo "Successfully updated vendorHash"
-                NEW_VERSION=$(grep -o 'version = "[^"]*"' package.nix | head -1 | sed 's/version = "\(.*\)"/\1/')
-                echo "has-changes=true" >> $GITHUB_OUTPUT
-                echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
-                echo "vendor-hash-updated=true" >> $GITHUB_OUTPUT
-              else
-                echo "Failed to update vendorHash"
-                exit 1
-              fi
+            # Run the vendor hash update script directly
+            if ./scripts/update-vendor-hash.sh; then
+              echo "Successfully updated hash"
+              NEW_VERSION=$(grep -o 'version = "[^"]*"' package.nix | head -1 | sed 's/version = "\(.*\)"/\1/')
+              echo "has-changes=true" >> $GITHUB_OUTPUT
+              echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+              echo "vendor-hash-updated=true" >> $GITHUB_OUTPUT
             else
-              echo "nix-update failed without modifying package.nix"
+              echo "Failed to update hash or build failed for another reason"
               exit 1
             fi
           fi
