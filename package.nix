@@ -95,6 +95,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
+    export NODE_ENV=production
+
     bun build \
       --define OPENCODE_VERSION="'${finalAttrs.version}'" \
       --compile \
