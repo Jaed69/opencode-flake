@@ -26,7 +26,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     owner = "sst";
     repo = "opencode";
     tag = "v${finalAttrs.version}";
-    hash = ""; # DEJAREMOS ESTO VACÍO TEMPORALMENTE
+    hash = "sha256-lsyjM6rhSv1HzEd2d/+aGHqrYMARj+TrFrLMGY2X59U=";
   };
 
   node_modules = stdenvNoCC.mkDerivation {
