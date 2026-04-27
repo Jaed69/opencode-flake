@@ -2,11 +2,9 @@
   lib,
   stdenv,
   stdenvNoCC,
-  buildGoModule,
   bun,
   fetchFromGitHub,
   makeBinaryWrapper,
-  models-dev,
   nix-update-script,
   testers,
   writableTmpDirAsHomeHook,
@@ -22,38 +20,13 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opencode";
-  version = "github-v1.2.16";
+  version = "1.14.28";
+
   src = fetchFromGitHub {
     owner = "sst";
     repo = "opencode";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-GiByJg4NpllA4N4QGSyWsBNqKqKIdxicIjQpc7mHgEs=";
-  };
-
-  tui = buildGoModule {
-    pname = "opencode-tui";
-    inherit (finalAttrs) version src;
-
-    modRoot = "packages/tui";
-
-    vendorHash = "sha256-H+TybeyyHTbhvTye0PCDcsWkcN8M34EJ2ddxyXEJkZI=";
-
-    subPackages = [ "cmd/opencode" ];
-
-    env.CGO_ENABLED = 0;
-
-    ldflags = [
-      "-s"
-      "-X=main.Version=${finalAttrs.version}"
-    ];
-
-    installPhase = ''
-      runHook preInstall
-
-      install -Dm755 $GOPATH/bin/opencode $out/bin/tui
-
-      runHook postInstall
-    '';
+    hash = ""; # DEJAREMOS ESTO VACÍO TEMPORALMENTE
   };
 
   node_modules = stdenvNoCC.mkDerivation {
@@ -77,16 +50,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
        export BUN_INSTALL_CACHE_DIR=$(mktemp -d)
 
-       # Disable post-install scripts to avoid shebang issues
        bun install \
          --filter=opencode \
          --force \
          --ignore-scripts \
          --no-progress
-        # Remove `--frozen-lockfile` and `--production` — they erroneously report the lockfile needs updating even though `bun install` does not change it.
-         # Related to  https://github.com/oven-sh/bun/issues/19088
-         # --frozen-lockfile \
-         # --production
 
       runHook postBuild
     '';
@@ -100,12 +68,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       runHook postInstall
     '';
 
-    # Required else we get errors that our fixed-output derivation references store paths
     dontFixup = true;
 
     outputHash =
       {
-        x86_64-linux = "sha256-YOTuzwo0ZjqVswW3bUu3pFJcmfl0X0Se8Z5jKg8/rQs=";
+        x86_64-linux = ""; # DEJAREMOS ESTO VACÍO TEMPORALMENTE TAMBIÉN
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
@@ -115,13 +82,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   nativeBuildInputs = [
     bun
     makeBinaryWrapper
-    models-dev
-  ];
-
-  patches = [
-    # Patch `packages/opencode/src/provider/models-macro.ts` to get contents of
-    # `_api.json` from the file bundled with `bun build`.
-    ./local-models-dev.patch
   ];
 
   configurePhase = ''
@@ -132,13 +92,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postConfigure
   '';
 
-  env.MODELS_DEV_API_JSON = "${models-dev}/dist/_api.json";
-
   buildPhase = ''
     runHook preBuild
 
     bun build \
-      --define OPENCODE_TUI_PATH="'${finalAttrs.tui}/bin/tui'" \
       --define OPENCODE_VERSION="'${finalAttrs.version}'" \
       --compile \
       --compile-exec-argv="--" \
@@ -159,10 +116,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  # Execution of commands using bash-tool fail on linux with
-  # Error [ERR_DLOPEN_FAILED]: libstdc++.so.6: cannot open shared object file: No such
-  # file or directory
-  # Thus, we add libstdc++.so.6 manually to LD_LIBRARY_PATH
   postFixup = ''
     wrapProgram $out/bin/opencode \
       --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ stdenv.cc.cc.lib ]}"
@@ -177,8 +130,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     updateScript = nix-update-script {
       extraArgs = [
         "--subpackage"
-        "tui"
-        "--subpackage"
         "node_modules"
       ];
     };
@@ -186,21 +137,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   meta = {
     description = "AI coding agent built for the terminal";
-    longDescription = ''
-      OpenCode is a terminal-based agent that can build anything.
-      It combines a TypeScript/JavaScript core with a Go-based TUI
-      to provide an interactive AI coding experience.
-    '';
     homepage = "https://github.com/sst/opencode";
     license = lib.licenses.mit;
     platforms = lib.platforms.unix;
-    maintainers = [
-      {
-        email = "aodhan.hayter@gmail.com";
-        github = "AodhanHayter";
-        name = "Aodhan Hayter";
-      }
-    ];
     mainProgram = "opencode";
   };
 })
